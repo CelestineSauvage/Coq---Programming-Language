@@ -1,0 +1,181 @@
+FSequences
+R125 Coq.Logic.Classical <> <> lib
+sec 170 <> SEQUENCES
+var 191 SEQUENCES A
+var 209 SEQUENCES R
+R217 Sequences <> SEQUENCES.A var
+R212 Sequences <> SEQUENCES.A var
+ind 319 <> star
+constr 347 <> star_refl
+constr 387 <> star_step
+R330 Sequences <> SEQUENCES.A var
+R325 Sequences <> SEQUENCES.A var
+R374 Sequences <> star ind
+R439 Sequences <> star ind
+R427 Sequences <> star ind
+R418 Sequences <> SEQUENCES.R var
+prf 456 <> star_one
+R494 Sequences <> star ind
+R485 Sequences <> SEQUENCES.R var
+R481 Sequences <> SEQUENCES.A var
+R481 Sequences <> SEQUENCES.A var
+prf 567 <> star_trans
+R632 Sequences <> star ind
+R620 Sequences <> star ind
+R598 Sequences <> star ind
+R594 Sequences <> SEQUENCES.A var
+R594 Sequences <> SEQUENCES.A var
+ind 778 <> plus
+constr 806 <> plus_left
+R789 Sequences <> SEQUENCES.A var
+R784 Sequences <> SEQUENCES.A var
+R858 Sequences <> plus ind
+R846 Sequences <> star ind
+R837 Sequences <> SEQUENCES.R var
+prf 875 <> plus_one
+R908 Sequences <> plus ind
+R899 Sequences <> SEQUENCES.R var
+R941 Sequences <> plus_left constr
+R941 Sequences <> plus_left constr
+R971 Sequences <> star_refl constr
+R971 Sequences <> star_refl constr
+prf 994 <> plus_star
+R1033 Sequences <> star ind
+R1021 Sequences <> plus ind
+R1080 Sequences <> star_step constr
+R1080 Sequences <> star_step constr
+prf 1111 <> plus_star_trans
+R1168 Sequences <> plus ind
+R1156 Sequences <> star ind
+R1144 Sequences <> plus ind
+R1215 Sequences <> plus_left constr
+R1215 Sequences <> plus_left constr
+R1240 Sequences <> star_trans thm
+R1240 Sequences <> star_trans thm
+prf 1271 <> star_plus_trans
+R1328 Sequences <> plus ind
+R1316 Sequences <> plus ind
+R1304 Sequences <> star ind
+R1433 Sequences <> star_trans thm
+R1433 Sequences <> star_trans thm
+prf 1486 <> plus_right
+R1535 Sequences <> plus ind
+R1526 Sequences <> SEQUENCES.R var
+R1514 Sequences <> star ind
+R1569 Sequences <> star_plus_trans thm
+R1569 Sequences <> star_plus_trans thm
+R1599 Sequences <> plus_one thm
+R1599 Sequences <> plus_one thm
+ind 1670 <> infseq
+constr 1695 <> infseq_step
+R1678 Sequences <> SEQUENCES.A var
+R1747 Sequences <> infseq ind
+R1735 Sequences <> infseq ind
+R1726 Sequences <> SEQUENCES.R var
+prf 1840 <> infseq_coinduction_principle
+R1961 Sequences <> infseq coind
+R1915:1921 Coq.Init.Logic <> :type_scope:'exists'_x_','_x not
+R1923:1924 Coq.Init.Logic <> :type_scope:'exists'_x_','_x not
+R1930:1933 Coq.Init.Logic <> :type_scope:x_'/\'_x not
+R1925 Sequences <> SEQUENCES.R var
+R1883 Sequences <> SEQUENCES.A var
+R2055 Sequences <> infseq_step constr
+R2055 Sequences <> infseq_step constr
+prf 2094 <> infseq_coinduction_principle_2
+R2220 Sequences <> infseq coind
+R2171:2177 Coq.Init.Logic <> :type_scope:'exists'_x_','_x not
+R2179:2180 Coq.Init.Logic <> :type_scope:'exists'_x_','_x not
+R2189:2192 Coq.Init.Logic <> :type_scope:x_'/\'_x not
+R2181 Sequences <> plus ind
+R2139 Sequences <> SEQUENCES.A var
+R2308:2314 Coq.Init.Logic <> :type_scope:'exists'_x_','_x not
+R2316:2317 Coq.Init.Logic <> :type_scope:'exists'_x_','_x not
+R2326:2329 Coq.Init.Logic <> :type_scope:x_'/\'_x not
+R2318 Sequences <> star ind
+R2255 Sequences <> infseq_coinduction_principle thm
+R2308:2314 Coq.Init.Logic <> :type_scope:'exists'_x_','_x not
+R2316:2317 Coq.Init.Logic <> :type_scope:'exists'_x_','_x not
+R2326:2329 Coq.Init.Logic <> :type_scope:x_'/\'_x not
+R2318 Sequences <> star ind
+R2255 Sequences <> infseq_coinduction_principle thm
+R2574 Sequences <> star_refl constr
+R2574 Sequences <> star_refl constr
+prf 2664 <> infseq_alternate_characterization
+R2758 Sequences <> infseq coind
+R2736:2742 Coq.Init.Logic <> :type_scope:'exists'_x_','_x not
+R2744:2745 Coq.Init.Logic <> :type_scope:'exists'_x_','_x not
+R2746 Sequences <> SEQUENCES.R var
+R2724 Sequences <> star ind
+R2783 Sequences <> infseq_coinduction_principle thm
+R2783 Sequences <> infseq_coinduction_principle thm
+def 3017 <> irred
+R3027 Sequences <> SEQUENCES.A var
+R3050:3051 Coq.Init.Logic <> :type_scope:'~'_x not
+R3057:3057 Coq.Init.Logic <> :type_scope:'~'_x not
+R3052 Sequences <> SEQUENCES.R var
+prf 3067 <> infseq_or_finseq
+R3105:3108 Coq.Init.Logic <> :type_scope:x_'\/'_x not
+R3097 Sequences <> infseq coind
+R3109:3115 Coq.Init.Logic <> :type_scope:'exists'_x_','_x not
+R3117:3118 Coq.Init.Logic <> :type_scope:'exists'_x_','_x not
+R3127:3130 Coq.Init.Logic <> :type_scope:x_'/\'_x not
+R3119 Sequences <> star ind
+R3131 Sequences <> irred def
+R3169 Coq.Logic.Classical_Prop <> classic prfax
+R3200:3206 Coq.Init.Logic <> :type_scope:'exists'_x_','_x not
+R3208:3209 Coq.Init.Logic <> :type_scope:'exists'_x_','_x not
+R3210 Sequences <> SEQUENCES.R var
+R3188 Sequences <> star ind
+R3169 Coq.Logic.Classical_Prop <> classic prfax
+R3200:3206 Coq.Init.Logic <> :type_scope:'exists'_x_','_x not
+R3208:3209 Coq.Init.Logic <> :type_scope:'exists'_x_','_x not
+R3210 Sequences <> SEQUENCES.R var
+R3188 Sequences <> star ind
+R3233 Sequences <> infseq_alternate_characterization thm
+R3233 Sequences <> infseq_alternate_characterization thm
+R3297 Coq.Logic.Classical_Pred_Type <> not_all_ex_not thm
+R3297 Coq.Logic.Classical_Pred_Type <> not_all_ex_not thm
+R3348 Coq.Logic.Classical_Prop <> imply_to_and thm
+R3348 Coq.Logic.Classical_Prop <> imply_to_and thm
+var 3548 SEQUENCES R_determ
+R3593:3595 Coq.Init.Logic <> :type_scope:x_'='_x not
+R3583 Sequences <> SEQUENCES.R var
+R3574 Sequences <> SEQUENCES.R var
+prf 3650 <> star_star_inv
+R3721:3724 Coq.Init.Logic <> :type_scope:x_'\/'_x not
+R3713 Sequences <> star ind
+R3725 Sequences <> star ind
+R3701 Sequences <> star ind
+R3679 Sequences <> star ind
+R3810 Sequences <> star_step constr
+R3810 Sequences <> star_step constr
+R3840:3842 Coq.Init.Logic <> :type_scope:x_'='_x not
+R3840:3842 Coq.Init.Logic <> :type_scope:x_'='_x not
+R3855 Sequences <> SEQUENCES.R_determ var
+R3855 Sequences <> SEQUENCES.R_determ var
+prf 3917 <> finseq_unique
+R4004:4006 Coq.Init.Logic <> :type_scope:x_'='_x not
+R3989 Sequences <> irred def
+R3976 Sequences <> star ind
+R3963 Sequences <> irred def
+R3951 Sequences <> star ind
+R4038 Sequences <> star_star_inv thm
+R4038 Sequences <> star_star_inv thm
+prf 4161 <> infseq_star_inv
+R4216 Sequences <> infseq coind
+R4204 Sequences <> infseq coind
+R4192 Sequences <> star ind
+R4295:4297 Coq.Init.Logic <> :type_scope:x_'='_x not
+R4295:4297 Coq.Init.Logic <> :type_scope:x_'='_x not
+R4310 Sequences <> SEQUENCES.R_determ var
+R4310 Sequences <> SEQUENCES.R_determ var
+prf 4371 <> infseq_finseq_excl
+R4442 Coq.Init.Logic <> False ind
+R4430 Sequences <> infseq coind
+R4419 Sequences <> irred def
+R4407 Sequences <> star ind
+R4477 Sequences <> infseq coind
+R4477 Sequences <> infseq coind
+R4495 Sequences <> infseq_star_inv thm
+R4495 Sequences <> infseq_star_inv thm
+R4567 Sequences SEQUENCES <> sec

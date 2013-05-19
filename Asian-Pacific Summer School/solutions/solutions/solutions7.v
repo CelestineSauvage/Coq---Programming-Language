@@ -1,0 +1,794 @@
+(** Syntax and semantics of the language called IMP, a small
+    imperative structured language. *)
+
+Require Import Coq.Program.Equality. 
+Require Import Bool.             
+Require Import ZArith.           
+Require Import Sequences.        
+
+Open Scope Z_scope.             
+
+(** * 1. Abstract syntax *)
+
+(** Variables are identified by integers. *)
+Definition ident : Type := Z.
+
+Definition eq_ident: forall (x y: ident), {x=y}+{x<>y} := Z_eq_dec.
+
+(** Syntax of arithmetic expressions  *)
+Inductive aexp : Type :=
+  | Const: Z -> aexp                    (**r constant *)
+  | Var: ident -> aexp                  (**r variable *)
+  | Plus: aexp -> aexp -> aexp          (**r sum [a1 + a2] *)
+  | Minus: aexp -> aexp -> aexp.         (**r difference [a1 - a2] *)
+
+(** Syntax of boolean expressions.  
+    Boolean expressions are used as conditions in [if] and [while] commands. *)
+Inductive bexp : Type :=
+  | TRUE: bexp                          (**r always true *)
+  | FALSE: bexp                         (**r always false *)
+  | Eq: aexp -> aexp -> bexp            (**r equality test [a1 == a2] *)
+  | Le: aexp -> aexp -> bexp            (**r less or equal test [a1 <= a2] *)
+  | Not: bexp -> bexp                   (**r negation [!b] *)
+  | And: bexp -> bexp -> bexp.          (**r conjunction [b1 & b2] *)
+
+(** Syntax of commands ("statements"). *)
+Inductive command : Type :=
+  | Skip                                (**r do nothing *)
+  | Assign: ident -> aexp -> command    (**r assignment [x = a;] *)
+  | Seq: command -> command -> command  (**r sequence [c1; c2] *)
+  | If: bexp -> command -> command -> command (**r conditional [if (b) { c1 } else {c2}] *)
+  | While: bexp -> command -> command.  (**r loop [while (b) { c }] *)
+
+Definition vx : ident := 1.
+Definition vy : ident := 2.
+Definition vq : ident := 3.
+Definition vr : ident := 4.
+
+(* Define the following commands : 
+- assignment "vr = vx"
+- the infinite loop such that its condition is always true and its body is the skip command 
+- the euclidian division, corresponding to the following algorithm
+<<
+                      r = x;
+                      q = 0;
+                      while (y <= r) {
+                          r = r - y;
+                          q = q + 1;
+                      }
+>>
+*)
+Definition assign1 := Assign vx (Var vr).
+
+Definition infinite_loop := While (TRUE) Skip.
+
+Definition euclidean_division : command :=
+  Seq (Assign vr (Var vx))
+   (Seq (Assign vq (Const 0))
+     (While (Le (Var vy) (Var vr))
+       (Seq (Assign vr (Minus (Var vr) (Var vy)))
+            (Assign vq (Plus (Var vq) (Const 1)))))).
+
+(** * 2. Denotational semantics (begin) *)
+Definition state := ident -> Z.
+
+Definition initial_state: state := fun (x: ident) => 0.
+
+(** Update the value of a variable, without changing the other variables. *)
+Definition update (s: state) (x: ident) (n: Z) : state :=
+  fun y => if eq_ident x y then n else s y.
+
+(** Good variable properties for [update]. *)
+
+Lemma update_same:
+  forall x val m, (update m x val) x = val.
+Proof.
+  unfold update; intros. destruct (eq_ident x x); congruence.
+Qed.
+
+Lemma update_other:
+  forall x val m y, x <> y -> (update m x val) y = m y.
+Proof.
+  unfold update; intros. destruct (eq_ident x y); congruence.
+Qed.
+
+(* Evaluation of expressions *)
+
+Fixpoint aeval (s: state) (e: aexp) {struct e} : Z :=
+  match e with
+  | Var x => s x
+  | Const n => n
+  | Plus e1 e2 => aeval s e1 + aeval s e2 
+  | Minus e1 e2 => aeval s e1 - aeval s e2 
+  end.
+
+Fixpoint beval (s: state) (b: bexp) : bool :=
+  match b with
+  | TRUE => true
+  | FALSE => false
+  | Eq e1 e2 =>
+      if Z_eq_dec (aeval s e1) (aeval s e2) then true else false
+  | Le e1 e2 =>
+      if Z_le_dec (aeval s e1) (aeval s e2) then true else false 
+  | Not b1     => negb (beval s b1)
+  | And b1 b2  => (beval s b1) && (beval s b2)
+  end.
+
+Compute (aeval initial_state (Var vx)).
+
+Compute (
+  let x : ident := 0 in
+  let s : state := update initial_state x 12 in
+  aeval s (Plus (Var x) (Const 1))).
+
+(* An example of optimization of expressions 
+   Write a function that transforms any arithmetic expression such as
+   0 + a into a, and leave other expressions unchanged. *)
+
+Fixpoint optimize_0plus (e:aexp) : aexp := 
+  match e with
+  | Const n => Const n
+  | Var v => Var v   
+  | Plus (Const 0) e2 => 
+      optimize_0plus e2
+  | Plus e1 e2 => 
+      Plus (optimize_0plus e1) (optimize_0plus e2)
+  | Minus e1 e2 => 
+      Minus (optimize_0plus e1) (optimize_0plus e2)
+  end.
+
+Compute (
+  optimize_0plus (Plus (Const 2) 
+                       (Plus (Const 0) 
+                             (Plus (Const 0) (Const 1))))).
+
+(* Prove that the previous optimization is sound:
+   every evaluation of an optimized expression yields the same value as
+   the evaluation of the original expression.
+   You should need to use induction here ! 
+*)
+
+Theorem optimize_0plus_sound : forall s e,
+aeval s (optimize_0plus e) = aeval s e.
+Proof.
+intros se; induction e; simpl; auto.
+
+(* Plus *)
+destruct e1. 
+destruct z; simpl. auto.
+rewrite IHe2; auto.
+rewrite IHe2; auto.
+simpl. rewrite IHe2; auto.
+
+simpl; simpl in IHe1; rewrite IHe1; rewrite IHe2; auto.
+
+simpl. rewrite IHe2. simpl in IHe1. rewrite IHe1. auto. 
+
+(* Minus *)
+rewrite IHe1; rewrite IHe2; auto.
+Qed.
+
+(** * 3. Small-step semantics *)
+
+Inductive red: command * state -> command * state -> Prop :=
+  | red_assign: forall x e s,
+      red (Assign x e, s) (Skip, update s x (aeval s e))
+  | red_seq_left: forall c1 c2 s c1' s',
+      red (c1, s) (c1', s') ->
+      red (Seq c1 c2, s) (Seq c1' c2, s')
+  | red_seq_skip: forall c s,
+      red (Seq Skip c, s) (c, s)
+  | red_if_true: forall s b c1 c2,
+      beval s b = true ->
+      red (If b c1 c2, s) (c1, s)
+  | red_if_false: forall s b c1 c2,
+      beval s b = false ->
+      red (If b c1 c2, s) (c2, s)
+  | red_while_true: forall s b c,
+      beval s b = true ->
+      red (While b c, s) (Seq c (While b c), s)
+  | red_while_false: forall b c s,
+      beval s b = false ->
+      red (While b c, s) (Skip, s).
+
+(* Prove the following lemma stating that red is deterministic.   
+   Use "induction 1" to reason by induction on derivations.
+*)
+Lemma red_deterministic:
+  forall cs cs1, red cs cs1 -> forall cs2, red cs cs2 -> cs1 = cs2.
+Proof.
+  induction 1; intros cs2 RED; inversion RED; subst; auto; try congruence.
+  generalize (IHred _ H4). congruence.
+  inversion H. 
+  inversion H3. 
+Qed.
+
+(** * 4. Natural sematnics (big-step) *)
+
+(** [eval m a n] is true if the expression [a] evaluates to value [n] in memory state [m]. *)
+
+Inductive eval: state -> aexp -> Z -> Prop :=
+  | eval_const: forall m n,
+      eval m (Const n) n
+  | eval_var: forall m x n,
+      m x = n ->
+      eval m (Var x) n
+  | eval_plus: forall m a1 a2 n1 n2,
+      eval m a1 n1 -> eval m a2 n2 ->
+      eval m (Plus a1 a2) (n1 + n2)
+  | eval_minus: forall m a1 a2 n1 n2,
+      eval m a1 n1 -> eval m a2 n2 ->
+      eval m (Minus a1 a2) (n1 - n2).
+
+(** Prove the following example of evaluation. *)
+Goal eval (update initial_state vx 42) (Plus (Var vx) (Const 2)) 44.
+Proof.
+  change 44 with (42 + 2). apply eval_plus.
+  apply eval_var. apply update_same. 
+  apply eval_const.
+Qed.
+
+(** ** Boolean expressions *)
+
+(** [beval m be bv] is true if the boolean expression [be] evaluates to the
+  boolean value [bv] (either [true] or [false]) in memory state [m]. *)
+
+Inductive beval2: state -> bexp -> bool -> Prop :=
+  | beval_true: forall m,
+      beval2 m TRUE true
+  | beval_false: forall m,
+      beval2 m FALSE false
+  | beval_eq_true: forall m a1 a2 n1 n2,
+      eval m a1 n1 -> eval m a2 n2 -> n1 = n2 ->
+      beval2 m (Eq a1 a2) true
+  | beval_eq_false: forall m a1 a2 n1 n2,
+      eval m a1 n1 -> eval m a2 n2 -> n1 <> n2 ->
+      beval2 m (Eq a1 a2) false
+  | beval_le_true: forall m a1 a2 n1 n2,
+      eval m a1 n1 -> eval m a2 n2 -> n1 <= n2 ->
+      beval2 m (Le a1 a2) true
+  | beval_le_false: forall m a1 a2 n1 n2,
+      eval m a1 n1 -> eval m a2 n2 -> n1 > n2 ->
+      beval2 m (Le a1 a2) false
+  | beval_not: forall m be1 bv1,
+      beval2 m be1 bv1 ->
+      beval2 m (Not be1) (negb bv1)
+  | beval_and: forall m be1 bv1 be2 bv2,
+      beval2 m be1 bv1 -> beval2 m be2 bv2 ->
+      beval2 m (And be1 be2) (bv1 && bv2).
+
+(** [exec m c m'] is true if the command [c], executed in the initial
+  state [m], terminates without error in final state [m']. *)
+
+Inductive exec: state -> command -> state -> Prop :=
+  | exec_skip: forall m,
+      exec m Skip m
+  | exec_assign: forall m x a,
+      exec m (Assign x a) (update m x (aeval m a))
+  | exec_seq: forall m c1 c2 m' m'',
+      exec m c1 m' -> exec m' c2 m'' ->
+      exec m (Seq c1 c2) m''
+  | exec_if_true: forall m b ifso ifnot m',
+      beval m b = true -> exec m ifso m' ->
+      exec m (If b ifso ifnot) m'
+  | exec_if_false: forall m b ifso ifnot m',
+      beval m b = false -> exec m ifnot m' ->
+      exec m (If b ifso ifnot) m'
+  | exec_while_false: forall m b body,
+      beval m b = false ->
+      exec m (While b body) m
+  | exec_while_true: forall m b body m' m'',
+      beval m b = true -> exec m body m' -> exec m' (While b body) m'' ->
+      exec m (While b body) m''.
+
+(** Prove the following example of program execution  *)
+Goal let prog := If (Le (Const 1) (Const 2)) (Assign vx (Const 3)) (Assign vx (Const 0)) in
+     exists m, exec initial_state prog m /\ m vx = 3.
+Proof.
+  simpl. econstructor; split. 
+  apply exec_if_true. simpl. auto. 
+  eapply exec_assign. 
+  apply update_same. 
+Qed.
+
+(** Example of non terminating execution *)
+
+Goal let prog := While TRUE Skip in
+     forall m m', ~ exec m prog m'.
+Proof.
+  simpl; intros; red; intros. dependent induction H. inversion H. auto.
+Qed.
+
+Ltac inv H := inversion H; subst; clear H.
+
+(* In order to prove this lemma, you should need 
+  several uses of inversion, but not induction. *)
+Lemma equiv1 :
+  forall x i m m', 
+   exec m (Seq (Assign x (Const 1)) (While (Le (Var x) (Const 2)) i)) m' -> 
+   exec m (Seq (Assign x (Const 1))
+             (Seq i (While (Le (Var x) (Const 2)) i))) m'.
+Proof.
+intros.
+inv H. inv H3. inv H5.
+inv H3.
+rewrite update_same in H0. discriminate. 
+econstructor.
+econstructor.
+econstructor; eauto.
+Qed.
+
+
+(** * 5. Small-step semantics (cont'd) *)
+
+(** Un programme termine sans erreurs s'il existe une suite finie de transitions
+- depuis l'etat initial: commande = programme, etat memoire = etat memoire initial
+- jusqu'a un etat final: commande = [Skip].
+*)
+
+Definition prog_terminates (prog: command) (m_init m_final: state) : Prop :=
+  star red (prog, m_init) (Skip, m_final).
+
+(** Si [R] est une relation binaire, [star R] est sa fermeture
+reflexive et transitive.  (Voir le module [Sequences] pour la
+definition.)  [star red] represente donc une suite de
+zero, une ou plusieurs etapes de calcul. *)
+
+(** Un programme diverge s'il existe une suite infinie de transitions
+a partir de l'etat initial. *)
+
+Definition prog_diverges (prog: command) (m_init: state) : Prop :=
+  infseq red (prog, m_init).
+
+(** De meme, [infseq R] represente une suite infinie de transitions [R].
+  (egalement defini dans le module [Sequences].) *)
+
+(** Enfin, un programme "plante" s'il existe une suite finie de transitions depuis 
+l'etat initial jusqu'a un etat qui n'est pas final et qui ne peut pas faire de transitions. *)
+
+Definition prog_crashes (prog: command) (m_init: state) : Prop :=
+  exists c, exists m,
+      star red (prog, m_init) (c, m)
+   /\ irred red (c, m) /\ ~(c = Skip ).
+
+(** * 6. Premieres preuves d'equivalences entre semantiques *)
+
+(** ** Semantique naturelle -> semantique a transitions. *)
+
+Remark star_red_seq_left:
+  forall c s c' s' c2,
+  star red (c, s) (c', s') ->
+  star red (Seq c c2, s) (Seq c' c2, s').
+Proof.
+  intros. dependent induction H. constructor.
+  destruct b. econstructor. apply red_seq_left; eauto. eauto. 
+Qed. 
+
+Lemma exec_terminates:
+  forall m c m', exec m c m' -> prog_terminates c m m'.
+Proof.
+  induction 1; intros.
+(* skip *)
+  apply star_refl.
+(* assign *)
+  apply star_one. constructor; auto.
+(* seq *)
+  apply star_trans with (Seq Skip c2, m'). 
+  apply star_red_seq_left. auto. 
+  apply star_step with (c2, m'). apply red_seq_skip. auto.
+(* if true *)
+  eapply star_step. apply red_if_true; auto. apply IHexec.
+(* if false *)
+  eapply star_step. apply red_if_false; auto. apply IHexec.
+(* while false *)
+  apply star_one. apply red_while_false; auto. 
+(* while true *)
+  eapply star_step. apply red_while_true; auto. 
+  apply star_trans with (Seq Skip (While b body), m').
+  apply star_red_seq_left. auto. 
+  eapply star_step. eapply red_seq_skip. auto.
+Qed.
+
+(** ** Small-step -> big-step *)
+
+(** The reverse implication, from small-step to big-step, is more subtle.
+The key lemma is the following, showing that one step of reduction
+followed by a big-step evaluation to a final state can be collapsed
+into a single big-step evaluation to that final state. *)
+
+Lemma red_preserves_exec:
+  forall c1 s1 c2 s2,
+  red (c1, s1) (c2, s2) ->
+  forall s3,
+  exec s2 c2 s3 ->
+  exec s1 c1 s3.
+Proof.
+  intros until s2. intro STEP. dependent induction STEP; intros.
+(* assign *)
+  inversion H; subst. apply exec_assign. 
+(* sequence *)
+  inversion H; subst. apply exec_seq with m'. eauto. auto.
+(* sequence finish *)
+  apply exec_seq with s2. apply exec_skip. auto.
+(* ifso *)
+  apply exec_if_true; auto.
+(* ifnot *)
+  apply exec_if_false; auto.
+(* while *)
+  inversion H0; subst. 
+  apply exec_while_true with m'; auto.
+  inversion H0; subst. 
+  apply exec_while_false; auto.
+Qed.
+
+(** As a consequence, a term that reduces to [Skip] evaluates in big-step
+  with the same final state. *)
+
+Theorem terminates_exec:
+  forall m c m',
+  prog_terminates c m m' ->
+  exec m c m'.
+Proof.
+   unfold prog_terminates; intros. dependent induction H.
+  apply exec_skip.
+  destruct b as [m1 c1]. apply red_preserves_exec with m1 c1; auto.
+Qed.
+
+(** *8. Definitionnal interpreter *)
+
+(** We can improve the readability of this definition by introducing
+    an auxiliary function [bind_option] to hide some of the "plumbing"
+    involved in repeatedly matching against optional states. *)
+
+Definition bind (r: option state) (f: state -> option state) : option state :=
+  match r with Some s => f s | None => None end.
+
+Fixpoint interp (n: nat) (c: command) (s: state) {struct n} : option state :=
+  match n with
+  | O => None
+  | S n' =>
+      match c with
+      | Skip => Some s
+      | Assign x e => Some (update s x (aeval s e))
+      | Seq c1 c2 => bind (interp n' c1 s) (fun s1 => interp n' c2 s1)
+      | If b c1 c2 => interp n' (if (beval s b) then c1 else c2) s
+      | While b c1 => if (beval s b)
+                      then (bind (interp n' c1 s) (fun s1 => interp n' (While b c1) s1))
+                      else Some s
+     end
+  end.
+
+Theorem interp_more: forall i1 i2 s s' c,
+  (i1 <= i2)%nat -> interp i1 c s = Some s' -> 
+  interp i2 c s = Some s'.
+Proof. 
+induction i1 as [|i1']; intros i2 s s' c Hle Hinterp.
+(* i1 = 0 *)
+    inversion Hinterp.
+(* i1 = S i1 *)
+    destruct i2 as [|i2']. inversion Hle. 
+    assert (Hle': (i1' <= i2')%nat) by omega.
+    destruct c.
+    (* Skip *)
+      simpl in Hinterp. inversion Hinterp. 
+      reflexivity.
+    (* assign *)
+      simpl in Hinterp. inversion Hinterp.
+      reflexivity.
+    (* sequence *)
+      simpl in Hinterp. simpl. 
+      remember (interp i1' c1 s) as s1'o.
+      destruct s1'o.
+        symmetry in Heqs1'o.
+        apply (IHi1' i2') in Heqs1'o; try assumption.
+        rewrite Heqs1'o. simpl. simpl in Hinterp.
+        apply (IHi1' i2') in Hinterp; try assumption.
+        inversion Hinterp.
+     (* if *)
+      simpl in Hinterp. simpl.
+      remember (beval s b) as bval.
+      destruct bval; apply (IHi1' i2') in Hinterp; assumption.
+     (* while *)
+    simpl in Hinterp. simpl.
+      destruct (beval s b); try assumption. 
+      remember (interp i1' c s) as s1'o.
+      destruct s1'o.
+        symmetry in Heqs1'o.
+        apply (IHi1' i2') in Heqs1'o; try assumption. 
+        rewrite -> Heqs1'o. simpl. simpl in Hinterp. 
+        apply (IHi1' i2') in Hinterp; try assumption.
+        simpl in Hinterp. inversion Hinterp.  
+Qed.
+
+Lemma interp_exec:
+  forall n c s s', interp n c s = Some s' -> exec s c s'.
+Proof.
+Admitted.
+
+Lemma exec_interp:
+  forall s c s', exec s c s' -> exists n, interp n c s = Some s'.
+Proof.
+Admitted.
+
+(** We now show a similar result for the coinductive big-step semantics
+  for divergence. *)
+
+Remark exec_interp_either:
+  forall n c s s', exec s c s' -> interp n c s = None \/ interp n c s = Some s'.
+Proof.
+  intros. 
+  destruct (exec_interp _ _ _ H) as [m EVAL].
+  remember (interp n c s). destruct o.
+  right.
+  assert ((m <= n \/ n <= m)%nat) by omega.
+  destruct H0. 
+  assert (interp n c s = Some s'). 
+    apply interp_more with m; auto.
+  congruence.
+  assert (interp m c s = Some s0).
+    apply interp_more with n; auto.
+  congruence.
+  left; auto.
+Qed.
+
+(** For the converse result, we again need a bit of classical logic
+  (the axiom of excluded middle) to show that the sequence
+  [n => interp st c n] has a limit: it stabilizes to a fixed result
+  when [n] is big enough. *)
+
+Require Import Classical.
+Require Import Max.
+
+Lemma interp_limit:
+  forall s c,
+  exists res, exists m, forall n, (m <= n)%nat -> interp n s c = res.
+Proof.
+  intros.
+  destruct (classic (forall n, interp n s c = None)).
+(* divergence *)
+  exists (@None state); exists 0%nat; auto.
+(* convergence *)
+  assert (EX: exists m, interp m s c <> None).
+    apply not_all_ex_not. auto.
+  destruct EX as [m EVAL].
+  remember (interp m s c) as res.
+  destruct res as [s' | ]. 
+  exists (Some s'); exists m; intros.
+  apply interp_more with m; auto. 
+  congruence.
+Qed.
+
+(** * 9. Definitional interpreter and denotational semantics *)
+
+(** Using yet another bit of logic (an axiom of description -- a variant
+  of the axiom of choice), we can show the existence of a function
+  [denot st c] which is the limit of the sequence [n => ceval_step st c n]
+  as [n] goes to infinity.  The result of this function is to be
+  interpreted as the denotation of command [c] in state [st]:
+- [denot st c = None] (or "bottom") means that [c] diverges
+- [denot st c = Some st'] means that [c] terminates with final state [st'].
+*)
+
+Require Import ClassicalDescription.
+
+Definition interp_limit_dep (s: state) (c: command) :
+  { res: option state | exists m, forall n, (m <= n)%nat -> interp n c s = res}.
+Proof.
+  intros. apply constructive_definite_description. 
+  destruct (interp_limit c s) as [res X]. 
+  exists res. red. split. auto. intros res' X'. 
+  destruct X as [m P]. destruct X' as [m' P']. 
+  transitivity (interp (max m m') c s).
+  symmetry. apply P. apply le_max_l.
+  apply P'. apply le_max_r.
+Qed.
+
+Definition denot (s: state) (c: command) : option state :=
+  proj1_sig (interp_limit_dep s c).
+
+
+Lemma denot_limit:
+  forall s c,
+  exists m, forall n, (m <= n)%nat -> interp n c s = denot s c.
+Proof.
+  intros. unfold denot. apply proj2_sig.
+Qed.
+
+Lemma denot_charact:
+  forall s c m res,
+  (forall n, (m <= n)%nat -> interp n c s = res) ->
+  denot s c = res.
+Proof.
+  intros. destruct (denot_limit s c) as [m' I].
+  assert (interp (max m m') c s = res).
+    apply H. apply le_max_l.
+  assert (interp (max m m') c s = denot s c).
+    apply I. apply le_max_r.
+  congruence.
+Qed.
+
+(**  From a definitional interpreter to a denotational semantics *)
+
+Lemma denot_terminates:
+  forall s c n s', interp n c s = Some s' -> denot s c = Some s'.
+Proof.
+  intros.
+  apply denot_charact with n. intros. apply interp_more with n; auto.
+Qed.
+
+(** We can then show that this [denot] function satisfies the equations of
+  denotational semantics for the Imp language. *)
+
+Lemma denot_skip:
+  forall s, denot s Skip = Some s.
+Proof.
+  intros. apply denot_terminates with 1%nat. simpl. auto.
+Qed.
+
+Lemma denot_assign:
+  forall v a s, denot s (Assign v a) = Some (update s v (aeval s a)).
+Proof.
+  intros. apply denot_terminates with 1%nat. simpl. auto.
+Qed.
+
+Lemma denot_seq:
+  forall c1 c2 s, 
+  denot s (Seq c1 c2) = bind (denot s c1) (fun s' => denot s' c2).
+Proof.
+  intros. destruct (denot_limit s c1) as [m1 LIM1].
+  destruct (denot s c1) as [s' | ]; simpl.
+(* c1 terminates *)
+  destruct (denot_limit s' c2) as [m2 LIM2].
+  apply denot_charact with (S (max m1 m2)). intros. 
+  destruct n. elimtype False; omega. 
+  simpl. rewrite LIM1; simpl. apply LIM2. 
+  apply le_trans with (max m1 m2). apply le_max_r. omega.
+  apply le_trans with (max m1 m2). apply le_max_l. omega.
+(* c1 diverges *)
+  apply denot_charact with (S m1); intros.
+  destruct n. elimtype False; omega. 
+  simpl. rewrite LIM1; simpl. auto. omega.
+Qed.
+
+Lemma denot_ifthenelse:
+  forall b c1 c2 s,
+  denot s (If b c1 c2) =
+  if beval s b then denot s c1 else denot s c2.
+Proof.
+  intros. 
+  remember (beval s b). destruct b0.
+(* b is true *)
+  destruct (denot_limit s c1) as [m LIM].
+  apply denot_charact with (S m); intros.
+  destruct n. elimtype False; omega. 
+  simpl. rewrite <- Heqb0. apply LIM. omega.
+(* b is false *)
+  destruct (denot_limit s c2) as [m LIM].
+  apply denot_charact with (S m); intros.
+  destruct n. elimtype False; omega. 
+  simpl. rewrite <- Heqb0. apply LIM. omega.
+Qed.
+
+Lemma denot_while:
+  forall b c s,
+  denot s (While b c) =
+  if beval s b
+  then bind (denot s c) (fun s' => denot s' (While b c))
+  else Some s.
+Proof.
+  intros. remember (beval s b). destruct b0.
+(* b is true *)
+  destruct (denot_limit s c) as [m1 LIM1].
+  destruct (denot s c) as [s' | ]; simpl.
+(* c terminates *)
+  destruct (denot_limit s' (While b c)) as [m2 LIM2].
+  apply denot_charact with (S (max m1 m2)). intros. 
+  destruct n. elimtype False; omega. 
+  simpl. rewrite <- Heqb0. rewrite LIM1; simpl. apply LIM2. 
+  apply le_trans with (max m1 m2). apply le_max_r. omega.
+  apply le_trans with (max m1 m2). apply le_max_l. omega.
+(* c diverges *)
+  apply denot_charact with (S m1); intros.
+  destruct n. elimtype False; omega. 
+  simpl. rewrite <- Heqb0. rewrite LIM1; simpl. auto. omega.
+(* b is false *)
+  apply denot_terminates with 1%nat. simpl. rewrite <- Heqb0. auto.
+Qed.
+
+(** Moreover, [denot s (While b c)] is the least fixpoint of the equation above. *)
+
+Definition result_less_defined (r1 r2: option state) : Prop :=
+  r1 = None \/ r1 = r2.
+
+Lemma denot_while_least_fixpoint:
+  forall b c (f: state -> option state),
+  (forall s,
+   f s = if beval s b then bind (denot s c) f else Some s) ->
+  (forall s,
+   result_less_defined (denot s (While b c)) (f s)).
+Proof.
+  intros. 
+  assert (forall n s, result_less_defined (interp n (While b c) s) (f s)).
+    induction n; intros; simpl.
+    red; auto.
+    rewrite (H s0). destruct (beval s0 b). 
+    remember (interp n c s0). destruct o; simpl.
+    replace (denot s0 c) with (Some s1). simpl.
+    apply IHn. symmetry. eapply denot_terminates; eauto. 
+    red; auto.
+    red; auto.
+  destruct (denot_limit s (While b c)) as [m LIM].
+  rewrite <- (LIM m). auto. omega.
+Qed.
+
+(** Composing the various results so far, we obtain the following equivalences
+  between the denotational semantics and the big-step semantics. *)
+
+Lemma denot_exec:
+  forall c s s',
+  exec s c s'  <->  denot s c = Some s'.
+Proof.
+  intros; split; intros.
+(* -> *)
+  destruct (exec_interp _ _ _ H) as [m EVAL].
+  apply denot_terminates with m; auto.
+(* <- *)
+  destruct (denot_limit s c) as [m LIMIT].
+  apply interp_exec with (n:=m). rewrite <- H. apply LIMIT. omega.
+Qed.
+
+
+(** Semantique executable -> semantique relationnelle *)
+
+Lemma aeval_sound:
+  forall m a n, aeval m a = n -> eval m a n.
+Proof with (try congruence).
+  induction a; simpl; intros.
+  inv H. constructor.
+  constructor; auto.
+  destruct (aeval m a1) as []_eqn... destruct (aeval m a2) as []_eqn... inv H; constructor; auto.
+inv H; constructor; auto.
+inv H; constructor; auto.
+inv H; constructor; auto.
+inv H; constructor; auto.
+  destruct (aeval m a1) as []_eqn... destruct (aeval m a2) as []_eqn... inv H; constructor; auto.
+inv H; constructor; auto.
+inv H; constructor; auto.
+inv H; constructor; auto.
+inv H; constructor; auto.
+Qed.
+
+Lemma beval_f_sound:
+  forall m be bv, beval m be = bv -> beval2 m be bv.
+Proof with (try congruence).
+  induction be; simpl; intros.
+  inv H. constructor.
+  inv H. constructor.
+Admitted.
+
+
+(** On peut iterer [interp] jusqu'a obtenir un etat final ou une erreur.
+  Cependant, toutes les fonctions Coq doivent terminer, et donc
+  nous devons borner a priori le nombre d'iterations. *)
+
+Definition run_prog (prog: command) : option state := interp 100%nat prog initial_state.
+
+(** Quelques exemples d'execution de programmes. *)
+
+Compute (let prog := If (Le (Const 1) (Const 2)) (Assign vx (Const 3)) (Assign vx (Const 0)) in
+         match run_prog prog with
+         | Some s => Some (s vx)
+         | _ => None
+         end).
+
+Compute (let prog := Seq (Assign vx (Const 101)) (Seq (Assign vy (Const 7)) euclidean_division) in
+         match run_prog prog with
+         | Some s => (Some (s vq), Some (s vr))
+         | _ => (None, None)
+         end).
+
+Compute (let prog := Assign vx (Var vx) in
+         run_prog prog).
+
+Compute (let prog := While TRUE Skip in
+         run_prog prog).

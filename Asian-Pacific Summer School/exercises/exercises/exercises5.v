@@ -1,0 +1,148 @@
+(* Exercise 1 *)
+(* Define an inductive type for the months in the gregorian calendar *)
+(*(the French or English civil calendar) *)
+
+(* Define an inductive type for the four seasons *)
+
+(* What is the inductive principle generated in each case ?*)
+
+(* Define a function mapping each month to the season that contains *)
+(* most of its days, using pattern matching *)
+
+(* Exercise 2 *)
+(* Define the boolean functions bool_xor, bool_and, bool_eq of type *)
+(*bool -> bool -> bool, and the function bool_not of type bool -> bool *)
+
+(* prove the following theorems:*)
+Lemma bool_xor_not_eq : forall b1 b2 : bool,
+  bool_xor b1 b2 = bool_not (bool_eq b1 b2).
+Proof.
+Qed.
+
+Lemma bool_not_and : forall b1 b2 : bool,
+  bool_not (bool_and b1 b2) = bool_or (bool_not b1) (bool_not b2).
+Proof.
+Qed.
+
+Lemma bool_not_not : forall b : bool, bool_not (bool_not b) = b.
+Proof.
+Qed.
+
+Lemma bool_or_not : forall b : bool, 
+  bool_or b (bool_not b) = true.
+Proof.
+Qed.
+
+Lemma bool_id_eq : forall b1 b2 : bool, 
+  b1 = b2 <-> bool_eq b1 b2 = true.
+Proof.
+Qed.
+
+
+Lemma bool_not_or : forall b1 b2 : bool,
+  bool_not (bool_or b1 b2) = bool_and (bool_not b1) (bool_not b2).
+Proof.
+Qed.
+
+Lemma bool_or_and : forall b1 b2 b3 : bool,
+  bool_or (bool_and b1 b3) (bool_and b2 b3) = 
+  bool_and (bool_or b1 b2) b3.
+Proof.
+Qed.
+
+(* Exercise 3 *)
+
+(* Let us consider again the type color defined in the lecture :*)
+Inductive color:Type :=
+ | white | black | yellow | cyan | magenta | red | blue | green.
+
+(* let us define the complement of a color *)
+
+Definition compl (c : color) :=
+ match c with 
+ | white => black 
+ | black => white
+ | yellow => blue
+ | cyan => red
+ | magenta => green
+ | red => cyan
+ | blue => yellow
+ | green => magenta
+ end.
+
+(*
+Prove the following results:*)
+
+Lemma compl_compl : forall c, compl (compl c)= c.
+Proof.
+ intro c;case c;simpl;trivial.
+Qed.
+
+Lemma compl_injective : forall c c', compl c = compl c' -> c = c'.
+Proof.
+Qed.
+
+Lemma compl_surjective : forall c, exists c', c= compl  c'.
+Proof.
+Qed.
+
+(** Exercise 4 *)
+
+(* Define an inductive type formula : Type that represents the *)
+(*abstract language of propositional logic without variables: 
+L = L /\ L | L \/ L | ~L | L_true | L_false
+*)
+Inductive formula : Type :=
+|L_true : formula
+|L_false : formula
+|L_and : formula -> formula -> formula
+|L_or : formula -> formula -> formula
+|L_neg : formula -> formula.
+  
+
+(* Define a function formula_holds of type (formula -> Prop computing the *)
+(* Coq formula corresponding to an element of type formula *)
+Fixpoint formula_holds (f : formula) : Prop :=
+  match f with
+    |L_true => True
+    |L_false => False
+    |L_and f1 f2 => (formula_holds f1) /\ (formula_holds f2)
+    |L_or f1 f2 =>  (formula_holds f1) \/ (formula_holds f2)
+    |L_neg f => ~(formula_holds f)
+  end.
+ 
+(* Define  a function isT_formula of type (formula -> bool) computing *)
+(* the intended truth value of (f : formula) *)
+Fixpoint isT_formula (f : formula) : bool :=
+  match f with
+    |L_true => true
+    |L_false => false
+    |L_and f1 f2 => andb (isT_formula f1) (isT_formula f2)
+    |L_or f1 f2 =>  orb (isT_formula f1) (isT_formula f2)
+    |L_neg f => negb (isT_formula f)
+  end.
+
+
+(* prove that is (idT_formula f) evaluates to true, then its *)
+(*corresponding Coq formula holds ie.:*)
+Require Import Bool.
+Lemma isT_formula_correct : forall f : formula, 
+   isT_formula f = true <-> formula_holds f.
+Proof.
+Qed.
+
+(* Exercise 5 *)
+(* We use the inductive type defined in the lecture:*)
+Inductive natBinTree : Set :=
+| Leaf : natBinTree
+| Node : nat -> natBinTree -> natBinTree -> natBinTree.
+
+(*
+Define a function which sums all the values present in the tree.
+*)
+
+(*
+Define a function is_zero_present : natBinTree -> bool, which tests if 
+the value 0 is present in the tree.
+*)
+
